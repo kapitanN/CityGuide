@@ -23,15 +23,6 @@ public class City extends RealmObject{
     public void setCountry(String country) {
         this.country = country;
     }
-    //    private Country country;
-//
-//    public Country getCountry() {
-//        return country;
-//    }
-//
-//    public void setCountry(Country country) {
-//        this.country = country;
-//    }
 
     public City() {
     }

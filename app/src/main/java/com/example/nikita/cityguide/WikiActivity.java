@@ -96,26 +96,24 @@ public class WikiActivity extends AppCompatActivity {
         protected void onPostExecute(String s) {
             super.onPostExecute(s);
             Log.d(LOG_TAG, s);
+            String noData = "Sorry, wikipedia doesn't have data for this city";
             try {
                 JSONObject object = new JSONObject(s);
                 JSONArray geonames = object.getJSONArray("geonames");
                 JSONObject firstArray = geonames.getJSONObject(0);
                 String wikiUrl = firstArray.getString("wikipediaUrl");
                 String summary = firstArray.getString("summary") + "\n\n" + wikiUrl;
-                String noData = "Sorry, wikipedia doesn't have data for this city";
                 TextView textView = new TextView(WikiActivity.this);
                 textView.setTextSize(25);
-                if (!summary.equals("")){
-                    textView.setText(summary);
-                    Log.d("summary",summary + "\n" + wikiUrl);
-                }
-                else {
-                    textView.setText(noData);
-                }
+                textView.setText(summary);
+                Log.d("summary",summary + "\n" + wikiUrl);
                 Linkify.addLinks(textView,Linkify.ALL);
-//                 Устанавливаем текстовое поле в системе компоновки activity
                 setContentView(textView);
             } catch (Exception e) {
+                TextView textView = new TextView(WikiActivity.this);
+                textView.setTextSize(25);
+                textView.setText(noData);
+                setContentView(textView);
                 e.printStackTrace();
             }
         }
