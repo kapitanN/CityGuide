@@ -30,14 +30,10 @@ import io.realm.RealmResults;
 
 public class MainActivity extends AppCompatActivity {
 
-
-    public static String LOG_TAG = "my_log";
     private Spinner spinner,spinner1;
-    private Button btnSubmit;
     public final static String WikiCity = "City";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.d("on create", "test");
         super.onCreate(savedInstanceState);
         RealmConfiguration config = new RealmConfiguration.Builder(this)
                 .deleteRealmIfMigrationNeeded()
@@ -56,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void addListenerOnButton() {
-
+        Button btnSubmit;
         spinner = (Spinner) findViewById(R.id.spinner);
         spinner1 = (Spinner) findViewById(R.id.spinner1);
         btnSubmit = (Button) findViewById(R.id.btnSubmit);
@@ -78,10 +74,8 @@ public class MainActivity extends AppCompatActivity {
         HttpURLConnection urlConnection = null;
         BufferedReader reader = null;
         String resultJson = "";
-        private Realm realm;
 
-
-        public void progress(final boolean progressFlag){
+        private void progress(final boolean progressFlag){
             runOnUiThread(new Runnable() {
                 @Override
                 public void run() {
@@ -94,6 +88,39 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             });
+        }
+
+        private void addCountryAndCities(JSONObject allData){
+            Realm realm = Realm.getDefaultInstance();
+            progress(true);
+            //Adding countries and cities to the local database
+            try {
+                for(int i = 0; i<allData.length(); i++){
+                    realm.beginTransaction();
+                    Country checkCountry  = realm.where(Country.class).equalTo("id",i).findFirst(); //Check country in database
+                    realm.commitTransaction();
+                    if (checkCountry == null){
+                        realm.beginTransaction();
+                        Country country = new Country();
+                        country.setId(i);
+                        country.setName(allData.names().getString(i));
+                        Country realmCountry = realm.copyToRealmOrUpdate(country); //Adding country to DB
+                        JSONArray cities = allData.getJSONArray(allData.names().getString(i)); //Get all the cities in the current country
+                        for (int j = 0; j < cities.length(); j++ ){
+                            City city = new City();
+                            city.setId(j);
+                            String name = cities.get(j).toString();
+                            city.setName(name);
+                            city.setCountry(country.getName());
+                            City realmCity = realm.copyToRealmOrUpdate(city); //Adding city to DB
+                        }
+                        realm.commitTransaction();
+                    }}
+                realm.close();
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+            progress(false);
         }
         @Override
         protected String doInBackground(Void... params) {
@@ -114,51 +141,24 @@ public class MainActivity extends AppCompatActivity {
                     buffer.append(line);
                 }
                 resultJson = buffer.toString();
-                JSONObject dataJsonObj = new JSONObject(resultJson);
-                realm = Realm.getDefaultInstance();
-                progress(true);
-                //Добавляем страны и города из json в локальную базу данных
-                for(int i = 0; i<dataJsonObj.length(); i++){
-                    realm.beginTransaction();
-                    Country checkCountry  = realm.where(Country.class).equalTo("id",i).findFirst();
-                    realm.commitTransaction();
-                    if (checkCountry == null){
-                        realm.beginTransaction();
-                        Log.d("country circle", "" + dataJsonObj.names().getString(i));
-                        Country country = new Country();
-                        country.setId(i);
-                        country.setName(dataJsonObj.names().getString(i));
-                        Country realmCountry = realm.copyToRealmOrUpdate(country);
-                        JSONArray cities = dataJsonObj.getJSONArray(dataJsonObj.names().getString(i));
-                        for (int j = 0; j < cities.length(); j++ ){
-                            Log.d("city circle", "" + cities.get(j).toString());
-                            City city = new City();
-                            city.setId(j);
-                            String name = cities.get(j).toString();
-                            city.setName(name);
-                            city.setCountry(country.getName());
-                            City realmCity = realm.copyToRealmOrUpdate(city);
-                        }
-                        realm.commitTransaction();
-                    }}
-                progress(false);
+
+                JSONObject allData = new JSONObject(resultJson); //Get all json data
+                addCountryAndCities(allData);
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
-            realm.close();
+
             return resultJson;
         }
 
         @Override
         protected void onPostExecute(String strJson) {
             super.onPostExecute(strJson);
-            // выводим целиком полученную json-строку
-            Log.d(LOG_TAG, strJson);
             final Realm realm1;
             realm1 = Realm.getDefaultInstance();
-            JSONObject dataJsonObj = null;
             try {
-                spinner = (Spinner) findViewById(R.id.spinner);
+                spinner = (Spinner) findViewById(R.id.spinner); //
                 spinner1 = (Spinner) findViewById(R.id.spinner1);
                 List<String> list = new ArrayList<>();
                 realm1.beginTransaction();
@@ -176,16 +176,18 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                         realm1.beginTransaction();
-                        Country country = realm1.where(Country.class).equalTo("name",String.valueOf(spinner.getSelectedItem())).findFirst();
+                        Country country = realm1.where(Country.class)
+                                .equalTo("name",String.valueOf(spinner.getSelectedItem())).findFirst(); //Get selected in spinner country from database
                         Log.d("Country from database",country.getName());
-                        RealmResults<City> cities = realm1.where(City.class).equalTo("country",country.getName()).findAll();
+                        List<City> cities = realm1.where(City.class)
+                                .equalTo("country",country.getName()).findAll(); //Get list of all cities in selected country
                         realm1.commitTransaction();
                         List<String> citiesList = new ArrayList<>();
                         for (int i = 0; i<cities.size(); i++){
                             citiesList.add(i,cities.get(i).getName());
                         }
-                        ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(MainActivity.this,
-                                android.R.layout.simple_spinner_item, citiesList);
+                        //Set list of cities in spinner
+                        ArrayAdapter<String> dataAdapter = new ArrayAdapter<String>(MainActivity.this,android.R.layout.simple_spinner_item, citiesList);
                         dataAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
                         spinner1.setAdapter(dataAdapter);
                     }
